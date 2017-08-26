@@ -8,6 +8,7 @@
 import argparse
 import fnmatch
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -154,6 +155,22 @@ def match_frame_images_to_subtitles(frame_images, subtitles_file):
             yield (frame_images[i], lines[line].strip())
 
 
+_RE_PARSE_SUBTITLE = r".*?(?P<name>[\w\d\s]+?)(?P<dist>\b[0-9\.a-z]+)\s\((?P<date>[\d\/]+)\)"
+
+
+def parse_subtitle(subtitle):
+    """Parse a subtitle into its components."""
+    match = re.match(_RE_PARSE_SUBTITLE, subtitle).groupdict()
+    if match:
+        return match
+
+    return {
+        "name": "",
+        "dist": "",
+        "date": ""
+    }
+
+
 def main(argv=None):
     """Take a video, some weights and model configs and recognize."""
     parser = argparse.ArgumentParser("""MRWA Autotagger.""")
@@ -203,4 +220,11 @@ def main(argv=None):
                                                            images_directory)
 
                 for image_filename, label, probability, box in detection_results:
-                    print(image_filename, matched_frames[image_filename], label, probability, box)
+                    subtitle_components = parse_subtitle(matched_frames[image_filename])
+                    print(image_filename,
+                          subtitle_components["name"],
+                          subtitle_components["dist"],
+                          subtitle_components["date"],
+                          label,
+                          probability,
+                          box)
