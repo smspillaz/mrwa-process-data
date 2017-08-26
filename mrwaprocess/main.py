@@ -236,7 +236,12 @@ def process_video(video,
                                                    darknet_weights,
                                                    images_directory,
                                                    subtitles_filename):
-                    writer.writerow(tup)
+                    image_filename = tup[0]
+                    image_base_filename = os.path.basename(image_filename)
+
+                    shutil.copyfile(image_filename, os.path.join(video_directory,
+                                                                 image_base_filename))
+                    writer.writerow([image_base_filename] + list(tup[1:]))
 
 
 def main(argv=None):
