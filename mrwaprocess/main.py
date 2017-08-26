@@ -196,7 +196,9 @@ def result_tuples_for_video(darknet_executable,
 					       images_directory)
 
     for image_filename, label, probability, box in detection_results:
-	subtitle_components = parse_subtitle(matched_frames[image_filename])
+        # If this fails, then we'll just have no subtitle data for this image
+	matched_frame = matched_frames.get(image_filename, "")
+        subtitle_components = parse_subtitle(matched_frame)
 	yield (image_filename,
 	       subtitle_components["name"],
 	       subtitle_components["dist"],
