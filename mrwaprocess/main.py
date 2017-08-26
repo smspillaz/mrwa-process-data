@@ -171,6 +171,39 @@ def parse_subtitle(subtitle):
     }
 
 
+def process_video(video,
+                  darknet_executable,
+                  darknet_model_config,
+                  darknet_yolo_config,
+                  darknet_weights,
+                  output_directory):
+    """Process a video, moving its files into the output directory."""
+    with ffmpeg_decompose_video(video) as images_directory:
+        with ffmpeg_decompose_srt(video) as subtitles_filename:
+            matched_frames = dict(
+                match_frame_images_to_subtitles(
+                    find_frames_from_images_directory(images_directory),
+                    subtitles_filename
+                )
+            )
+
+            detection_results = darknet_run_detections(darknet_executable,
+                                                       darknet_model_config,
+                                                       darknet_yolo_config,
+                                                       darknet_weights,
+                                                       images_directory)
+
+            for image_filename, label, probability, box in detection_results:
+                subtitle_components = parse_subtitle(matched_frames[image_filename])
+                print(image_filename,
+                      subtitle_components["name"],
+                      subtitle_components["dist"],
+                      subtitle_components["date"],
+                      label,
+                      probability,
+                      box)
+
+
 def main(argv=None):
     """Take a video, some weights and model configs and recognize."""
     parser = argparse.ArgumentParser("""MRWA Autotagger.""")
@@ -198,33 +231,18 @@ def main(argv=None):
                         help="""The path to the darknet executable.""",
                         metavar="DARKNET_EXECUTABLE",
                         required=True)
+    parser.add_argument("--output",
+                        type=str,
+                        help="""DIRECTORY file to write results to.""",
+                        metavar="OUTPUT",
+                        required=True)
     result = parser.parse_args(argv or sys.argv[1:])
 
     for video in result.videos:
-        with ffmpeg_decompose_video(video) as images_directory:
-            with ffmpeg_decompose_srt(video) as subtitles_filename:
-                print("Images directory: {}".format(images_directory))
-                print("Subtitles filename: {}".format(subtitles_filename))
+        process_video(video,
+                      result.darknet_executable,
+                      result.darknet_model_config,
+                      result.darknet_yolo_config,
+                      result.darknet_weights,
+                      result.output)
 
-                matched_frames = dict(
-                    match_frame_images_to_subtitles(
-                        find_frames_from_images_directory(images_directory),
-                        subtitles_filename
-                    )
-                )
-
-                detection_results = darknet_run_detections(result.darknet_executable,
-                                                           result.darknet_model_config,
-                                                           result.darknet_yolo_config,
-                                                           result.darknet_weights,
-                                                           images_directory)
-
-                for image_filename, label, probability, box in detection_results:
-                    subtitle_components = parse_subtitle(matched_frames[image_filename])
-                    print(image_filename,
-                          subtitle_components["name"],
-                          subtitle_components["dist"],
-                          subtitle_components["date"],
-                          label,
-                          probability,
-                          box)
