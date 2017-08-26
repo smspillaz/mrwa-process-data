@@ -6,6 +6,7 @@
 # See /LICENCE.md for Copyright information
 
 import argparse
+import fnmatch
 import os
 import shutil
 import subprocess
@@ -72,6 +73,40 @@ def ffmpeg_decompose_srt(video_file):
             #shutil.rmtree(tempdir)
 
 
+def darknet_run_detections(darknet_executable,
+                           darknet_model_config,
+                           darknet_yolo_config,
+                           darknet_weights,
+                           images_directory):
+    """Use darknet to run detections on the images.
+
+    Provide the full path to the darknet executable, a set of
+    trained weights, a YOLOv2 config, a model config
+    and the directory to the images. This function yields
+    three-tuples of images filenames and bounding boxes
+    along with the classification and percentage probability
+    that the bounding box is that classification.
+    """
+
+    images = [
+        os.path.join(images_directory, i)
+        for i in fnmatch.filter(os.listdir(images_directory), "*.jpg")
+    ]
+    proc = subprocess.Popen([os.path.abspath(darknet_executable),
+                             "detector",
+                             "testmany",
+                             os.path.abspath(darknet_model_config),
+                             os.path.abspath(darknet_yolo_config),
+                             os.path.abspath(darknet_weights)] + images,
+                            cwd=os.path.dirname(darknet_executable),
+                            stdout=subprocess.PIPE)
+    output, error = proc.communicate()
+
+    for line in output.decode().splitlines():
+        filename, label, prob, left, right, top, bottom = line.strip().split(",")
+        yield (filename, label, prob, (left, right, top, bottom))
+
+
 def main(argv=None):
     """Take a video, some weights and model configs and recognize."""
     parser = argparse.ArgumentParser("""MRWA Autotagger.""")
@@ -79,6 +114,26 @@ def main(argv=None):
                         nargs="+",
                         help="""The videos to process.""",
                         metavar="VIDEO")
+    parser.add_argument("--darknet-model-config",
+                        type=str,
+                        help="""The path to the cfg/obj.data file.""",
+                        metavar="MODEL_CONFIG",
+                        required=True)
+    parser.add_argument("--darknet-yolo-config",
+                        type=str,
+                        help="""The path to the cfg/yolo-obj.cfg file.""",
+                        metavar="YOLO_CONFIG",
+                        required=True)
+    parser.add_argument("--darknet-weights",
+                        type=str,
+                        help="""The path to the trained darknet weights.""",
+                        metavar="WEIGHTS",
+                        required=True)
+    parser.add_argument("--darknet-executable",
+                        type=str,
+                        help="""The path to the darknet executable.""",
+                        metavar="DARKNET_EXECUTABLE",
+                        required=True)
     result = parser.parse_args(argv or sys.argv[1:])
 
     for video in result.videos:
@@ -86,3 +141,12 @@ def main(argv=None):
             with ffmpeg_decompose_srt(video) as subtitles_filename:
                 print("Images directory: {}".format(images_directory))
                 print("Subtitles filename: {}".format(subtitles_filename))
+
+                detection_results = darknet_run_detections(result.darknet_executable,
+                                                           result.darknet_model_config,
+                                                           result.darknet_yolo_config,
+                                                           result.darknet_weights,
+                                                           images_directory)
+
+                for image_filename, label, probability, box in detection_results:
+                    print(image_filename, label, probability, box)
