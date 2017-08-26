@@ -161,9 +161,9 @@ _RE_PARSE_SUBTITLE = r".*?(?P<name>[\w\d\s]+?)(?P<dist>\b[0-9\.a-z]+)\s\((?P<dat
 
 def parse_subtitle(subtitle):
     """Parse a subtitle into its components."""
-    match = re.match(_RE_PARSE_SUBTITLE, subtitle).groupdict()
+    match = re.match(_RE_PARSE_SUBTITLE, subtitle)
     if match:
-        return match
+        return match.groupdict()
 
     return {
         "name": "",
