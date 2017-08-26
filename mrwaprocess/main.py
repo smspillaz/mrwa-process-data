@@ -171,6 +171,40 @@ def parse_subtitle(subtitle):
     }
 
 
+def result_tuples_for_video(darknet_executable,
+                            darknet_model_config,
+                            darknet_yolo_config,
+                            darknet_weights,
+                            images_directory,
+                            subtitles_filename):
+    """Yield tuples of results for this video.
+
+    The results can be placed in a CSV file, for instance.
+    """
+    matched_frames = dict(
+	match_frame_images_to_subtitles(
+	    find_frames_from_images_directory(images_directory),
+	    subtitles_filename
+	)
+    )
+
+    detection_results = darknet_run_detections(darknet_executable,
+					       darknet_model_config,
+					       darknet_yolo_config,
+					       darknet_weights,
+					       images_directory)
+
+    for image_filename, label, probability, box in detection_results:
+	subtitle_components = parse_subtitle(matched_frames[image_filename])
+	yield (image_filename,
+	       subtitle_components["name"],
+	       subtitle_components["dist"],
+	       subtitle_components["date"],
+	       label,
+	       probability,
+	       box)
+
+
 def process_video(video,
                   darknet_executable,
                   darknet_model_config,
@@ -180,28 +214,13 @@ def process_video(video,
     """Process a video, moving its files into the output directory."""
     with ffmpeg_decompose_video(video) as images_directory:
         with ffmpeg_decompose_srt(video) as subtitles_filename:
-            matched_frames = dict(
-                match_frame_images_to_subtitles(
-                    find_frames_from_images_directory(images_directory),
-                    subtitles_filename
-                )
-            )
-
-            detection_results = darknet_run_detections(darknet_executable,
-                                                       darknet_model_config,
-                                                       darknet_yolo_config,
-                                                       darknet_weights,
-                                                       images_directory)
-
-            for image_filename, label, probability, box in detection_results:
-                subtitle_components = parse_subtitle(matched_frames[image_filename])
-                print(image_filename,
-                      subtitle_components["name"],
-                      subtitle_components["dist"],
-                      subtitle_components["date"],
-                      label,
-                      probability,
-                      box)
+            for tup in result_tuples_for_video(darknet_executable,
+                                               darknet_model_config,
+                                               darknet_yolo_config,
+                                               darknet_weights,
+                                               images_directory,
+                                               subtitles_filename):
+                print(tup)
 
 
 def main(argv=None):
