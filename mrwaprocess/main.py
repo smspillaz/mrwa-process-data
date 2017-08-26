@@ -107,6 +107,53 @@ def darknet_run_detections(darknet_executable,
         yield (filename, label, prob, (left, right, top, bottom))
 
 
+FRAMES_PER_SECONDS = 5
+
+
+def timecode(subtitle, frame):
+    """Tells at which time on the video the frame has been taken """
+    with open(subtitle, "r") as f:
+        lines = f.readlines()
+        res = lines[frame * 4 + 1]
+    res = float(res[7:10].replace(",", "."))  # time elapsed between the start and the first subtitle
+    return res
+
+
+def first_frame(subtitle):
+    """Finds the frame with some subtitles """
+    res = int(FRAMES_PER_SECONDS * timecode(subtitle, 0))  # consider substracting 1 if needed
+    return res
+
+
+def check_correspondance_frame_subtitle(subtitle, last_frame, last_timecode):
+    """Checks whether the next frame is subbed (not in use) """
+    return timecode(subtitle, last_frame) == last_timecode + 1 / FRAMES_PER_SECONDS
+
+
+def find_frames_from_images_directory(images_directory):
+    """Find and sort all frame images from the images directory."""
+    return sorted([os.path.join(images_directory, fn)
+                   for fn in os.listdir(images_directory)],
+                  key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
+
+
+def match_frame_images_to_subtitles(frame_images, subtitles_file):
+    """Open the subtitles file and match frame images to it."""
+    first_frame_no = first_frame(subtitles_file)
+
+    with open(subtitles_file, "r") as fp:
+        lines = fp.readlines()
+        lines_len = len(lines)
+        for i in range(first_frame_no, len(frame_images)):
+            line = (i - first_frame_no) * 4 + 2
+
+            # We are slightly out of sync. Return early.
+            if line >= lines_len:
+                break
+
+            yield (frame_images[i], lines[line].strip())
+
+
 def main(argv=None):
     """Take a video, some weights and model configs and recognize."""
     parser = argparse.ArgumentParser("""MRWA Autotagger.""")
@@ -142,6 +189,13 @@ def main(argv=None):
                 print("Images directory: {}".format(images_directory))
                 print("Subtitles filename: {}".format(subtitles_filename))
 
+                matched_frames = dict(
+                    match_frame_images_to_subtitles(
+                        find_frames_from_images_directory(images_directory),
+                        subtitles_filename
+                    )
+                )
+
                 detection_results = darknet_run_detections(result.darknet_executable,
                                                            result.darknet_model_config,
                                                            result.darknet_yolo_config,
@@ -149,4 +203,4 @@ def main(argv=None):
                                                            images_directory)
 
                 for image_filename, label, probability, box in detection_results:
-                    print(image_filename, label, probability, box)
+                    print(image_filename, matched_frames[image_filename], label, probability, box)
