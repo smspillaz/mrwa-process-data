@@ -6,6 +6,8 @@
 # See /LICENCE.md for Copyright information
 
 import argparse
+import csv
+import errno
 import fnmatch
 import os
 import re
@@ -202,7 +204,10 @@ def result_tuples_for_video(darknet_executable,
 	       subtitle_components["date"],
 	       label,
 	       probability,
-	       box)
+	       box[0],
+               box[1],
+               box[2],
+               box[3])
 
 
 def process_video(video,
@@ -214,13 +219,24 @@ def process_video(video,
     """Process a video, moving its files into the output directory."""
     with ffmpeg_decompose_video(video) as images_directory:
         with ffmpeg_decompose_srt(video) as subtitles_filename:
-            for tup in result_tuples_for_video(darknet_executable,
-                                               darknet_model_config,
-                                               darknet_yolo_config,
-                                               darknet_weights,
-                                               images_directory,
-                                               subtitles_filename):
-                print(tup)
+            video_directory = os.path.join(output_directory,
+                                           os.path.splitext(os.path.basename(video))[0])
+            try:
+                os.makedirs(video_directory)
+            except OSError as error:
+                if error.errno != errno.EEXIST:
+                    raise error
+
+            with open(os.path.join(video_directory, "results.csv"), "w") as f:
+                writer = csv.writer(f)
+
+                for tup in result_tuples_for_video(darknet_executable,
+                                                   darknet_model_config,
+                                                   darknet_yolo_config,
+                                                   darknet_weights,
+                                                   images_directory,
+                                                   subtitles_filename):
+                    writer.writerow(tup)
 
 
 def main(argv=None):
