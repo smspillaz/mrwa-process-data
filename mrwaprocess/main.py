@@ -46,8 +46,7 @@ def ffmpeg_decompose_video(video_file):
         try:
             yield tempdir
         finally:
-            pass
-            #shutil.rmtree(tempdir)
+            shutil.rmtree(tempdir)
 
 
 @contextmanager
