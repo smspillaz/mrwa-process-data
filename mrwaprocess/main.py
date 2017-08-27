@@ -64,7 +64,7 @@ def ffmpeg_decompose_srt(video_file):
             "-i",
             abs_video_file,
             "-map",
-            "0:s:0",
+            "0:s:0?",
             "subs.srt",
             "%04d.jpg"
         ], cwd=tempdir)
