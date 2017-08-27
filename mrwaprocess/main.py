@@ -129,8 +129,10 @@ def timecode(subtitle, frame):
 
 def first_frame(subtitle):
     """Finds the frame with some subtitles """
-    res = int(FRAMES_PER_SECONDS * timecode(subtitle, 0))  # consider substracting 1 if needed
-    return res
+    try:
+        return int(FRAMES_PER_SECONDS * timecode(subtitle, 0))  # consider substracting 1 if needed
+    except ValueError:
+        return 0
 
 
 def check_correspondance_frame_subtitle(subtitle, last_frame, last_timecode):
