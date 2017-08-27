@@ -59,15 +59,21 @@ def ffmpeg_decompose_srt(video_file):
     """
     with temporary_directory(prefix="subtitle", dir=os.getcwd()) as tempdir:
         abs_video_file = os.path.abspath(video_file)
-        subprocess.check_call([
-            "ffmpeg",
-            "-i",
-            abs_video_file,
-            "-map",
-            "0:s:0?",
-            "subs.srt",
-            "%04d.jpg"
-        ], cwd=tempdir)
+        try:
+            subprocess.check_call([
+                "ffmpeg",
+                "-i",
+                abs_video_file,
+                "-map",
+                "0:s:0?",
+                "subs.srt",
+                "%04d.jpg"
+            ], cwd=tempdir)
+        except subprocess.CalledProcessError:
+            with open(os.path.join(tempdir, "subs.srt"), "w") as f:
+                f.write("\n\n")
+
+
         try:
             yield os.path.join(tempdir, "subs.srt")
         finally:
