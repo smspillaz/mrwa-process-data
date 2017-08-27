@@ -73,12 +73,10 @@ def ffmpeg_decompose_srt(video_file):
             with open(os.path.join(tempdir, "subs.srt"), "w") as f:
                 f.write("\n\n")
 
-
         try:
             yield os.path.join(tempdir, "subs.srt")
         finally:
-            pass
-            #shutil.rmtree(tempdir)
+            shutil.rmtree(tempdir)
 
 
 def darknet_run_detections(darknet_executable,
